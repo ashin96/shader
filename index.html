@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<title></title>
+	<meta charset="utf-8">
+	<meta name="generator" content="Three.js Editor">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<script src="./node_modules/echarts/dist/echarts.js"></script>
+	<script src="./node_modules/d3-array/dist/d3-array.js"></script>
+	<script src="./node_modules/d3-geo/dist/d3-geo.js"></script>
+	<style>
+		body {
+			font-family: sans-serif;
+			font-size: 11px;
+			background-color: rgb(148, 146, 146);
+			margin: 0px;
+			color: #0a8eda;
+		}
+
+		canvas {
+			display: block;
+		}
+
+		.label_box {
+			pointer-events: none;
+			perspective: 1px;
+		}
+
+		.label {
+			font-size: 16px;
+			color: #fff;
+			background-color: #00000066;
+			border-radius: 5px;
+		}
+	</style>
+</head>
+
+<body ontouchstart="">
+	<script id="vertex-shader" type="x-shader/x-vertex">
+		uniform float time;
+		uniform float buffer;
+		uniform float speed;
+		uniform vec3 p1;
+		uniform vec3 p2;
+		uniform vec3 color;
+		varying vec3 iPosition;
+		varying float dis;
+		varying float alldis;
+		varying vec4 icolor;
+	
+		void main(){
+			icolor = vec4(color.r,color.g,color.b,1.0);
+			iPosition = vec3(position);
+			dis = distance(p1,position);
+			alldis = distance(p1,p2);
+			const float size = 1.5;
+			float pointsize = size;
+			if(dis < time * speed){
+				pointsize =2.0* pointsize;
+
+				if(time * speed > alldis ) {
+					float a = (time * speed - alldis) / buffer;
+					float b = 1.0-a;
+					pointsize =pointsize - (size * a);
+				}
+			}
+			gl_PointSize = pointsize;
+			gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);
+		}
+	</script>
+
+	<script id="fragment-shader-7" type="x-shader/x-fragment">
+		uniform float time;
+		uniform float speed;
+		uniform float buffer;
+		varying vec3 iPosition;
+		varying float dis;
+		varying float alldis;
+		varying vec4 icolor;
+	
+		void main( void ) {
+			vec4 color;
+			if(dis > time * speed){
+				color = vec4(1,1,1,1.0);
+			}else if(dis < time * speed ){
+				
+				color = vec4(icolor);
+
+				if(time * speed > alldis ) {
+					float a = (time * speed - alldis) / buffer;
+					float b = 1.0-a;
+					float cr = icolor.r;
+					float cg = icolor.g;
+					float cb = icolor.b;
+					color = vec4(cr+(1.0-cr)*a, cg+(1.0-cg)*a, cb+(1.0-cb)*a,1.0);
+				}
+			}
+
+			gl_FragColor = color;
+			
+		}
+	</script>
+	<script type="module">
+		// vec4 c1 = vec4(1,1,1,1.0)
+		// vec4 c2 = vec4(1,1,0,1.0)
+		// color = vec4(mix(c1, c2, 0.1),1.0 * a);
+		// color = vec4(vec3(mix(vec3(1,1,1), vec3(1,1,0), 2.0 * time - 1.0),1.0);
+		// float ca = (iPosition.x - time)/size;
+		//     color = vec4(ca/2.8,ca/1.9,ca,1.0);
+
+		import * as THREE from './node_modules/three/build/three.module.js';
+		import { CSS2DRenderer, CSS2DObject } from './node_modules/three/examples/jsm/renderers/CSS2DRenderer.js';
+		import { OrbitControls } from './node_modules/three/examples/jsm/controls/OrbitControls.js'
+		import { APP } from './js/app.js';
+		import { VRButton } from './js/VRButton.js';
+
+		window.THREE = THREE; // Used by APP Scripts.
+		window.VRButton = VRButton; // Used by APP Scripts.
+		var player = new APP.Player();
+		var projection = d3.geoMercator();
+
+		console.log(player)
+
+		// debugger
+		player.setScene(new THREE.Scene())
+		player.setLight(new THREE.AmbientLight(0x353535, 3))
+		player.setCamera(new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000))
+		// player.camera.up = new THREE.Vector3( 0, 0, 1 )
+		player.setControls(new OrbitControls(player.camera, player.dom))
+		player.camera.position.set(50, 50, 50)
+		player.setSize(window.innerWidth, window.innerHeight)
+		player.setCSS2DRender(new CSS2DRenderer(), player.dom)
+		// player.setAxesHelper(20)
+		player.scene.add(new THREE.AxesHelper(200))
+		// player.scene.add(new THREE.GridHelper(100, 100))
+
+		window.addEventListener('resize', function () {
+			player.setSize(window.innerWidth, window.innerHeight);
+			player.setCSS2DRender(new CSS2DRenderer(), player.dom)
+			player.camera.aspect = window.innerWidth / window.innerHeight;
+			player.camera.updateProjectionMatrix();
+		});
+
+		var geometry = new THREE.BoxBufferGeometry(2, 2, 2);
+		var material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+		var cube = new THREE.Mesh(geometry, material);
+
+		player.scene.add(cube);
+
+		async function getJson(url) {
+			const res = await fetch(url)
+			const json = await res.json()
+			return echarts.parseGeoJSON(json)
+		}
+
+		function changeCoordinate(pointValue) {
+			let x = pointValue[0] * 10 - 8020
+			let y = pointValue[1] * 10 - 1600
+			return [x, y]
+		}
+
+
+
+
+		function drawMap(arr) {
+			let shape = new THREE.Shape()
+			let extrudeSettings = { depth: 0.5, bevelEnabled: true, bevelSegments: 0, steps: 2, bevelSize: 0, bevelThickness: 0 };
+
+			shape.moveTo(arr[0][0], arr[0][1])
+
+			arr.forEach(item => {
+				shape.lineTo(item[0], item[1]);
+			});
+
+			let geometry = new THREE.ExtrudeBufferGeometry(shape, extrudeSettings);
+
+			let material1 = new THREE.MeshBasicMaterial({
+				color: 0x0a8eda
+			})
+
+			let material2 = new THREE.MeshBasicMaterial({
+				color: 0x0a9fda
+			})
+
+			let materialArr = [material1, material2]
+
+			let mesh = new THREE.Mesh(geometry, materialArr);
+			mesh.material.forEach((material) => {
+				material.transparent = true
+				material.opacity = 0.5
+			})
+			return mesh
+		}
+
+		function drawLine(arr) {
+			let geometry = new THREE.Geometry();
+			arr.forEach(item => {
+				geometry.vertices.push(
+					new THREE.Vector3(
+						item[0],
+						item[1],
+						0
+					)
+				);
+			});
+			let lineMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
+			let line = new THREE.Line(geometry, lineMaterial);
+
+			return line
+		}
+
+		function addReginName(regin) {
+			let labelDiv = document.createElement('div');
+			// labelDiv.className = 'label';
+			labelDiv.innerHTML = `<div class="label">${regin.name}</div>`
+			let Label = new CSS2DObject(labelDiv);
+			Label.name = regin.name
+			let labelCoord = changeCoordinate(projection(regin.center))
+			Label.position.y = labelCoord[1]
+			Label.position.x = labelCoord[0]
+			Label.position.z = 0
+			Label.visible = true
+			return Label
+		}
+		function getRandomReginPoint() {
+			let shapeGroup = player.scene.getObjectByName('shapeGroup')
+			let nowChosePosition
+			shapeGroup.children.forEach((regin, index) => {
+				if (index === Math.floor(Math.random() * 15)) {
+
+					nowChosePosition = regin.children[2].position
+				}
+			})
+			return nowChosePosition
+		}
+
+
+
+		function createMaterial(vertexShader, fragmentShader) {
+			var vertShader = document.getElementById(vertexShader).innerHTML; //获取顶点着色器的代码
+			var fragShader = document.getElementById(fragmentShader).innerHTML; //获取片元着色器的代码
+			//配置着色器里面的attribute变量的值
+			var attributes = {};
+			//配置着色器里面的uniform变量的值
+			var uniforms = {
+				time: { type: 'f', value: 0.0 },
+				buffer: { type: 'f', value: 0.0 },
+				speed: { type: 'f', value: 0.0 },
+				p1: {
+					type: "v3",
+					value: new THREE.Vector3()
+				},
+				p2: {
+					type: "v3",
+					value: new THREE.Vector3()
+				},
+				color: {
+					type: "v3",
+					value: new THREE.Vector3()
+				}
+			};
+			var meshMaterial = new THREE.ShaderMaterial({
+				uniforms: uniforms,
+				defaultAttributeValues: attributes,
+				vertexShader: vertShader,
+				fragmentShader: fragShader,
+				transparent: true
+			});
+			return meshMaterial;
+		}
+
+		function createdFlyline(start, end, color) {
+			var flyline;
+			var curve = new THREE.LineCurve3(start, end)
+
+			let dx = end.x - start.x
+			let dy = end.y - start.y
+			let dz = end.z - start.z
+			let max = Math.sqrt(Math.pow(dx, 2) + Math.pow(dy, 2) + Math.pow(dz, 2))
+			var points = curve.getPoints(max * 35);
+
+			var geometry = new THREE.Geometry();
+			geometry.vertices = points;
+			var material = createMaterial("vertex-shader", "fragment-shader-7");
+			flyline = new THREE.Points(geometry, material);
+			flyline.material.uniforms.time.value = 0.0;
+			flyline.material.uniforms.buffer.value = 10.0;
+			flyline.material.uniforms.speed.value = 0.3;
+			flyline.material.uniforms.p1.value = start;
+			flyline.material.uniforms.p2.value = end;
+			flyline.material.uniforms.color.value = color;
+			flyline.maxx = max
+
+			return flyline
+		}
+
+		// function randomNum(minNum, maxNum) {
+		// 	switch (arguments.length) {
+		// 		case 1:
+		// 			return parseInt(Math.random() * minNum + 1, 10);
+		// 			break;
+		// 		case 2:
+		// 			return parseInt(Math.random() * (maxNum - minNum + 1) + minNum, 10);
+		// 			break;
+		// 		default:
+		// 			return 0;
+		// 			break;
+		// 	}
+		// }
+
+
+
+
+		// const objectLoader = new THREE.ObjectLoader();
+		// objectLoader.load('mapGroup.json', function (mesh) {
+		// 	player.scene.add(mesh);
+		// })
+
+		// let p =  new Promise(async function addShape(resolve) {
+		// 	const jsonData = await getJson('shanghai.json')
+		// 	console.log('jsonData', jsonData)
+		// 	let shapeGroup = new THREE.Group()
+		// 	shapeGroup.name = 'shapeGroup'
+		// 	shapeGroup.rotateX(Math.PI / 2)
+		// 	shapeGroup.position.y = 0.5
+		// 	// shapeGroup.scale.set(10, 10, 10)
+
+		// 	jsonData.forEach((regin) => {
+		// 		let reginGroup = new THREE.Group()
+		// 		let nameGroup = new THREE.Group()
+
+		// 		reginGroup.name = regin.name
+
+		// 		regin.geometries.forEach((geo) => {
+		// 			let geoPointArr = geo.exterior
+		// 			geoPointArr = geoPointArr.map((item) => {
+		// 				return changeCoordinate(projection(item))
+		// 			})
+
+		// 			let mapMesh = drawMap(geoPointArr)
+		// 			let mapLine = drawLine(geoPointArr)
+
+		// 			reginGroup.add(mapMesh)
+		// 			reginGroup.add(mapLine)
+		// 		})
+
+		// 		let label = addReginName(regin)
+		// 		// nameGroup.add(label)
+		// 		reginGroup.add(label)
+		// 		shapeGroup.add(reginGroup)
+		// 		console.log(shapeGroup)
+
+		// 	})
+		// 	// shapeGroup.position.set(-20.5, 0.5, -26)
+		// 	// shapeGroup.scale.multiplyScalar(1.35)
+		// 	player.scene.add(shapeGroup);
+		// 	resolve()
+		// })
+
+		// p.then((res)=>{
+		// 	for (var i = 0; i < 30; i++) {
+		// 	// var minx = randomNum(-2000, -600) / 10;
+		// 	// var maxx = randomNum(600, 2000) / 10;
+		// 	var startNum = new THREE.Vector3((Math.random() + 1) * 20, (Math.random() + 1) * 20, -1)
+		// 	var endNum = new THREE.Vector3((Math.random() + 1) * 20, (Math.random() + 1) * 20, -1)
+		// 	let color = new THREE.Vector3((Math.random() + 0.1), (Math.random() + 0.1), (Math.random() + 0.1))
+
+		
+
+		// 	// let startNum = getRandomReginPoint()
+		// 	// let endNum = getRandomReginPoint()
+		// 	addFlyline(startNum, endNum, color);
+		// 	// addFlyline(startNum,new THREE.Vector3(50,50,-50));
+		// }
+		// })
+
+
+		player.play()
+
+		document.body.appendChild(player.dom)
+
+		let flylinegroup = new THREE.Group()
+		flylinegroup.name = 'linesGroup'
+
+		for (var i = 0; i < 10; i++) {
+			// var minx = randomNum(-2000, -600) / 10;
+			// var maxx = randomNum(600, 2000) / 10;
+			var startNum = new THREE.Vector3((Math.random() + 1) * 10, (Math.random() + 1) * 10, -(Math.random() + 1) * 10)
+			var endNum = new THREE.Vector3((Math.random() + 1) * 10, (Math.random() + 1) * 10, -(Math.random() + 1) * 10)
+			let color = new THREE.Vector3((Math.random() + 0.1), (Math.random() + 0.1), (Math.random() + 0.1))
+
+			// let startNum = new THREE.Vector3(50,50,-10)
+			// let endNum = new THREE.Vector3(100,50,-10)
+			// let startNum = getRandomReginPoint()
+			// let endNum = getRandomReginPoint()
+			let flyLine = createdFlyline(startNum, endNum, color);
+			// addFlyline(startNum,new THREE.Vector3(50,50,-50));
+
+			flylinegroup.add(flyLine);
+		}
+
+		flylinegroup.rotateX(Math.PI / 2)
+		player.scene.add(flylinegroup);
+
+
+			//position: Vector3
+			// x: -20.5
+			// y: 0.5
+			// z: -26
+			// scale: Vector3
+			// x: 1.35
+			// y: 1.35
+			// z: 1.35
+
+			// var loader = new THREE.FileLoader();
+			// loader.load( 'app.json', function ( text ) {
+
+			// 	var player = new APP.Player();
+			// 	player.load( JSON.parse( text ) );
+			// 	player.setSize( window.innerWidth, window.innerHeight );
+			// 	player.play();
+
+			// 	document.body.appendChild( player.dom );
+
+			// 	window.addEventListener( 'resize', function () {
+
+			// 		player.setSize( window.innerWidth, window.innerHeight );
+
+			// 	} );
+
+			// } );
+
+	</script>
+</body>
+
+</html>
