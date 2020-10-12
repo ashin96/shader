@@ -160,21 +160,7 @@
 			Label.visible = true
 			return Label
 		}
-		function getRandomReginPoint() {
-			let shapeGroup = player.scene.getObjectByName('shapeGroup')
-			let nowChosePosition
-			shapeGroup.children.forEach((regin, index) => {
-				if (index === Math.floor(Math.random() * 15)) {
-
-					nowChosePosition = regin.children[2].position
-				}
-			})
-			return nowChosePosition
-		}
-
-
-
-
+		// 城投地图模型参考
 		// const objectLoader = new THREE.ObjectLoader();
 		// objectLoader.load('mapGroup.json', function (mesh) {
 		// 	player.scene.add(mesh);
