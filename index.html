@@ -9,6 +9,7 @@
 	<script src="./node_modules/echarts/dist/echarts.js"></script>
 	<script src="./node_modules/d3-array/dist/d3-array.js"></script>
 	<script src="./node_modules/d3-geo/dist/d3-geo.js"></script>
+	<script src="./node_modules/@tweenjs/tween.js/dist/tween.umd.js"></script>
 	<style>
 		body {
 			font-family: sans-serif;
@@ -131,16 +132,19 @@
 		}
 
 		function drawLine(arr) {
-			let geometry = new THREE.Geometry();
-			arr.forEach(item => {
-				geometry.vertices.push(
-					new THREE.Vector3(
-						item[0],
-						item[1],
-						0
-					)
-				);
-			});
+			// let geometry = new THREE.Geometry();
+			// arr.forEach(item => {
+			// 	geometry.vertices.push(
+			// 		new THREE.Vector3(
+			// 			item[0],
+			// 			item[1],
+			// 			0
+			// 		)
+			// 	);
+			// });
+			const position = new THREE.Float32BufferAttribute(arr.map(item => [item[0], item[1], 0]).flat(), 3)
+			let geometry = new THREE.BufferGeometry();
+			geometry.setAttribute('position', position)
 			let lineMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
 			let line = new THREE.Line(geometry, lineMaterial);
 

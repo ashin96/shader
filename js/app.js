@@ -195,7 +195,6 @@ var APP = {
 			// time = performance.now();
 			var delta = clock.getDelta(); // 获取本次和上次的时间间隔
 			stats.begin();
-
 			// try {
 
 			// 	dispatch( events.update, { time: time, delta: time - prevTime } );
@@ -220,11 +219,16 @@ var APP = {
 						let time = line.material.uniforms.time.value;
 						let buffer = line.material.uniforms.buffer.value;
 						let speed = line.material.uniforms.speed.value;
+						let move = line.material.uniforms.move.value;
 						if (time * speed > line.maxx + buffer) {
 
 							line.material.uniforms.time.value = 0.0;
 						}
-						line.material.uniforms.time.value += speed;
+						if(move){
+							line.material.uniforms.time.value += speed;
+						}else{
+							line.material.uniforms.time.value = (line.maxx + buffer)/speed
+						}
 					}
 				})
 
@@ -244,6 +248,7 @@ var APP = {
 			if (controls) controls.update();
 			// console.time('render')
 			renderer.render(scene, camera);
+			TWEEN.update();
 			// console.timeEnd('render')
 			if (labelRenderer) labelRenderer.render(scene, camera)
 			// prevTime = time;
@@ -267,7 +272,6 @@ var APP = {
 			// document.addEventListener( 'touchmove', onDocumentTouchMove );
 
 			// dispatch( events.start, arguments );
-
 			renderer.setAnimationLoop(animate);
 
 		};

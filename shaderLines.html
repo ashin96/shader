@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="./node_modules/@tweenjs/tween.js/dist/tween.umd.js"></script>
     <title>Document</title>
 </head>
 
@@ -13,6 +14,7 @@
 		uniform float buffer;
         uniform float speed;
         uniform bool blink;
+        uniform bool move;
 		uniform vec3 p1;
 		uniform vec3 p2;
 		uniform vec3 color;
@@ -26,7 +28,7 @@
 			iPosition = vec3(position);
 			dis = distance(p1,position);
 			alldis = distance(p1,p2);
-			const float size = 1.5;
+			const float size = 2.0;
 			float pointsize = size;
 			if(dis < time * speed){
 				pointsize =2.0* pointsize;
@@ -47,31 +49,37 @@
 		uniform float speed;
         uniform float buffer;
         uniform bool blink;
+        uniform bool move;
 		varying vec3 iPosition;
 		varying float dis;
 		varying float alldis;
 		varying vec4 icolor;
 	
 		void main( void ) {
-			vec4 color;
-			if(dis > time * speed){
-				color = vec4(1,1,1,1.0);
-			}else if(dis < time * speed ){
-				
-				color = vec4(icolor);
-
-				if(time * speed > alldis ) {
-					float a = (time * speed - alldis) / buffer;
-					float b = 1.0-a;
-					float cr = icolor.r;
-					float cg = icolor.g;
-					float cb = icolor.b;
-					color = vec4(cr+(1.0-cr)*a, cg+(1.0-cg)*a, cb+(1.0-cb)*a,1.0);
-				}
+            vec4 color;
+            if(move){
+                if(dis > time * speed){
+                    color = vec4(1,1,1,1.0);
+                }else if(dis < time * speed ){
+                    
+                    color = vec4(icolor);
+    
+                    if(time * speed > alldis ) {
+                        float a = (time * speed - alldis) / buffer;
+                        float b = 1.0-a;
+                        float cr = icolor.r;
+                        float cg = icolor.g;
+                        float cb = icolor.b;
+                        color = vec4(cr+(1.0-cr)*a, cg+(1.0-cg)*a, cb+(1.0-cb)*a,1.0);
+                    }
+                }
+            }else{
+                color = vec4(icolor);
             }
+			
             
-            if(blink && time!=0.0){
-                float alpha = abs(sin(0.1 * time ));
+            if(blink){
+                float alpha = abs(sin(0.2 * time ));
                 color = vec4(color.rgb,alpha);
             }
 
@@ -102,10 +110,12 @@
         // debugger
         player.setScene(new THREE.Scene())
         player.setLight(new THREE.AmbientLight(0x353535, 3))
-        player.setCamera(new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000))
+        player.setCamera(new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 10000))
         // player.camera.up = new THREE.Vector3( 0, 0, 1 )
         player.setControls(new OrbitControls(player.camera, player.dom))
-        player.camera.position.set(50, 50, 50)
+        player.controls.target.set(239.44831095590192, 276.71879399100135, -138.10840662081864)
+        player.camera.position.set(242.4660156083131, 512.4914032238776, 1215.638311306486)
+        player.camera.rotation.set(-0.16852475205453143, -0.012108163416192886, -0.002060011364021765)
         player.setSize(window.innerWidth, window.innerHeight)
         // player.setAxesHelper(20)
         player.scene.add(new THREE.AxesHelper(200))
@@ -117,7 +127,7 @@
             player.camera.updateProjectionMatrix();
         });
 
-        var geometry = new THREE.BoxBufferGeometry(2, 2, 2);
+        var geometry = new THREE.BoxBufferGeometry(20, 20, 20);
         var material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
         var cube = new THREE.Mesh(geometry, material);
 
@@ -148,6 +158,7 @@
                 buffer: { type: 'f', value: 0.0 },
                 speed: { type: 'f', value: 0.0 },
                 blink: { type: 'bool', value: false },
+                move: { type: 'bool', value: false },
                 p1: {
                     type: "v3",
                     value: new THREE.Vector3()
@@ -171,7 +182,7 @@
             return meshMaterial;
         }
 
-        function createdFlyline(start, end, color, blink) {
+        function createdFlyline(start, end, color, blink = false, move = false) {
             var flyline;
             var curve = new THREE.LineCurve3(start, end)
 
@@ -189,6 +200,7 @@
             flyline.material.uniforms.buffer.value = 10.0;
             flyline.material.uniforms.speed.value = 0.3;
             flyline.material.uniforms.blink.value = blink;
+            flyline.material.uniforms.move.value = move;
             flyline.material.uniforms.p1.value = start;
             flyline.material.uniforms.p2.value = end;
             flyline.material.uniforms.color.value = color;
@@ -198,37 +210,175 @@
         }
 
 
+        function deepCopy(obj) {
+            if (typeof obj != 'object') {
+                return obj;
+            }
+            var newobj = {};
+            for (var attr in obj) {
+                newobj[attr] = deepCopy(obj[attr]);
+            }
+            return newobj;
+        }
+        let station = {
+            '核心1': { lnglat: new THREE.Vector3(Math.random() * 500, Math.random() * 500, -600), type: 'shape1' },
+            '汇聚1': { lnglat: new THREE.Vector3(Math.random() * 500, Math.random() * 500, -400), type: 'shape2' },
+            '汇聚2': { lnglat: new THREE.Vector3(Math.random() * 500, Math.random() * 500, -400), type: 'shape2' },
+            '接入1': { lnglat: new THREE.Vector3(Math.random() * 500, Math.random() * 500, -200), type: 'shape3' },
+            '接入2': { lnglat: new THREE.Vector3(Math.random() * 500, Math.random() * 500, -200), type: 'shape3' },
+            '接入3': { lnglat: new THREE.Vector3(Math.random() * 500, Math.random() * 500, -200), type: 'shape3' },
+            '接入4': { lnglat: new THREE.Vector3(Math.random() * 500, Math.random() * 500, -200), type: 'shape3' },
+            '接入5': { lnglat: new THREE.Vector3(Math.random() * 500, Math.random() * 500, -200), type: 'shape3' },
+        }
+
+        let linesArr = [
+            { start: station['核心1'].lnglat, end: station['汇聚1'].lnglat, color: new THREE.Vector3((Math.random() + 0.1), (Math.random() + 0.1), (Math.random() + 0.1)) },
+            { start: station['核心1'].lnglat, end: station['汇聚2'].lnglat, color: new THREE.Vector3((Math.random() + 0.1), (Math.random() + 0.1), (Math.random() + 0.1)) },
+            { start: station['汇聚1'].lnglat, end: station['汇聚2'].lnglat, color: new THREE.Vector3((Math.random() + 0.1), (Math.random() + 0.1), (Math.random() + 0.1)) },
+            { start: station['汇聚1'].lnglat, end: station['接入1'].lnglat, color: new THREE.Vector3((Math.random() + 0.1), (Math.random() + 0.1), (Math.random() + 0.1)) },
+            { start: station['汇聚1'].lnglat, end: station['接入2'].lnglat, color: new THREE.Vector3((Math.random() + 0.1), (Math.random() + 0.1), (Math.random() + 0.1)) },
+            { start: station['汇聚1'].lnglat, end: station['接入3'].lnglat, color: new THREE.Vector3((Math.random() + 0.1), (Math.random() + 0.1), (Math.random() + 0.1)) },
+            { start: station['汇聚2'].lnglat, end: station['接入4'].lnglat, color: new THREE.Vector3((Math.random() + 0.1), (Math.random() + 0.1), (Math.random() + 0.1)) },
+            { start: station['汇聚2'].lnglat, end: station['接入5'].lnglat, color: new THREE.Vector3((Math.random() + 0.1), (Math.random() + 0.1), (Math.random() + 0.1)) },
+        ]
 
 
-        player.play()
+        let shapeGroup = new THREE.Group()
+        shapeGroup.name = 'shapeGroup'
+        player.scene.add(shapeGroup);
+
+        function createPoints(type) {
+            let sphereGroup = new THREE.Group()
+            sphereGroup.name = 'sphereGroup'
+            for (let key in station) {
+                let geometry = new THREE.SphereBufferGeometry(5, 10, 10);
+                let material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+                let sphere = new THREE.Mesh(geometry, material);
+                let coordinate = deepCopy(station[key].lnglat)
+                sphere.position.copy(coordinate)
+                if (type === '2d') {
+                    sphere.position.z = 0
+                }
+                sphereGroup.add(sphere)
+            }
+            sphereGroup.rotateX(Math.PI / 2)
+            player.scene.add(sphereGroup);
+        }
+
+
+        function createLines(type) {
+            let flylineGroup = new THREE.Group()
+            flylineGroup.name = 'linesGroup'
+            linesArr.forEach((l) => {
+                let line = deepCopy(l)
+                if (type === '2d') {
+                    line.start.z = 0
+                    line.end.z = 0
+                }
+                let flyLine = createdFlyline(line.start, line.end, line.color);
+                flylineGroup.add(flyLine);
+            })
+            flylineGroup.rotateX(Math.PI / 2)
+            player.scene.add(flylineGroup);
+        }
+
+        function createdShape(y, name) {
+            let shape = new THREE.Shape()
+            let extrudeSettings = { depth: 10, bevelEnabled: true, bevelSegments: 0, steps: 2, bevelSize: 0, bevelThickness: 0 };
+
+            shape.moveTo(0, 0)
+            shape.lineTo(0, 500)
+            shape.lineTo(500, 500)
+            shape.lineTo(500, 0)
+
+            let geometry = new THREE.ExtrudeBufferGeometry(shape, extrudeSettings);
+
+            let material1 = new THREE.MeshBasicMaterial({
+                color: 0x0a8eda
+            })
+
+            let material2 = new THREE.MeshBasicMaterial({
+                color: 0x0a9fda
+            })
+
+            let materialArr = [material1, material2]
+
+            let mesh = new THREE.Mesh(geometry, materialArr);
+            mesh.position.y = 0
+            mesh._offsetY = y
+            mesh.rotateX(Math.PI / 2)
+            mesh.material.forEach(m => {
+                m.transparent = true
+                m.opacity = 0.5
+            })
+            mesh.name = name
+            mesh.visible = false
+            shapeGroup.add(mesh)
+        }
+
+        createdShape(0, 'shape0')
+        createdShape(600, 'shape1')
+        createdShape(400, 'shape2')
+        createdShape(200, 'shape3')
+
+        player.scene.getObjectByName('shape0').visible = true
+        createPoints('2d')
+        createLines('2d')
+
+        function stateTwo() {
+            player.scene.remove(player.scene.getObjectByName('sphereGroup'))
+            player.scene.remove(player.scene.getObjectByName('linesGroup'))
+            
+            player.scene.getObjectByName('shape0').visible = false
+
+            shapeGroup.children.forEach((s) => {
+                if (s.name === 'shape0') return
+                s.visible = true
+                new TWEEN.Tween(s.position).to({ y: s._offsetY }, 1500).easing(TWEEN.Easing.Quadratic.Out).start()
+            })
+            setTimeout(() => {
+                createPoints()
+                createLines()
+            }, 1500)
+        }
+
+        setTimeout(() => {
+            stateTwo()
+        }, 2000)
 
         document.body.appendChild(player.dom)
 
-        let flylinegroup = new THREE.Group()
-        flylinegroup.name = 'linesGroup'
 
-        for (var i = 0; i < 5; i++) {
-            // var minx = randomNum(-2000, -600) / 10;
-            // var maxx = randomNum(600, 2000) / 10;
-            var startNum = new THREE.Vector3(Math.random() * 50, Math.random() * 50, -20)
-            var endNum = new THREE.Vector3(Math.random() * 50, Math.random() * 50, -20)
-            let color = new THREE.Vector3((Math.random() + 0.1), (Math.random() + 0.1), (Math.random() + 0.1))
 
-            // let startNum = new THREE.Vector3(50,50,-10)
-            // let endNum = new THREE.Vector3(100,50,-10)
-            // let startNum = getRandomReginPoint()
-            // let endNum = getRandomReginPoint()
-            let blink;
-            Math.random() > 0.5 ? blink = true : blink = false
-            let flyLine = createdFlyline(startNum, endNum, color, blink);
-            // addFlyline(startNum,new THREE.Vector3(50,50,-50));
 
-            flylinegroup.add(flyLine);
-        }
 
-        flylinegroup.rotateX(Math.PI / 2)
-        player.scene.add(flylinegroup);
 
+
+
+
+        // for (var i = 0; i < 50; i++) {
+
+        //     let randomZ1 = -(Math.floor(Math.random() * 10) % 3 + 1) * 200
+        //     let randomZ2 = randomZ1 - 200
+        //     if (randomZ2 < -600) randomZ2 = randomZ1 + 200
+        //     var startNum = new THREE.Vector3(Math.random() * 500, Math.random() * 500, randomZ1)
+        //     var endNum = new THREE.Vector3(Math.random() * 500, Math.random() * 500, randomZ2)
+        //     let color = new THREE.Vector3((Math.random() + 0.1), (Math.random() + 0.1), (Math.random() + 0.1))
+
+
+        //     let blink;
+        //     let move;
+        //     Math.random() > 0.5 ? blink = true : blink = false
+        //     Math.random() > 0.5 ? move = true : move = false
+        //     let flyLine = createdFlyline(startNum, endNum, color);
+        //     flyLine.rotateX(Math.PI / 2)
+
+        //     flylinegroup.add(flyLine);
+        // }
+
+        // flylinegroup.rotateX(Math.PI / 2)
+
+        player.play()
 
 			//position: Vector3
 			// x: -20.5
