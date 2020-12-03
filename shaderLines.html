@@ -76,11 +76,10 @@
             }else{
                 color = vec4(icolor);
             }
-			
             
             if(blink){
                 float alpha = abs(sin(0.2 * time ));
-                color = vec4(color.rgb,alpha);
+                color = vec4(icolor.rgb,alpha);
             }
 
 			gl_FragColor = color;
@@ -205,7 +204,6 @@
             flyline.material.uniforms.p2.value = end;
             flyline.material.uniforms.color.value = color;
             flyline.maxx = max
-
             return flyline
         }
 
@@ -411,3 +409,4 @@
 </body>
 
 </html>
+

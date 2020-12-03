@@ -220,11 +220,12 @@ var APP = {
 						let buffer = line.material.uniforms.buffer.value;
 						let speed = line.material.uniforms.speed.value;
 						let move = line.material.uniforms.move.value;
+						let blink = line.material.uniforms.blink.value;
 						if (time * speed > line.maxx + buffer) {
 
 							line.material.uniforms.time.value = 0.0;
 						}
-						if(move){
+						if(move ||blink ){
 							line.material.uniforms.time.value += speed;
 						}else{
 							line.material.uniforms.time.value = (line.maxx + buffer)/speed
