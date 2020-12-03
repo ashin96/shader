@@ -329,7 +329,7 @@
             
             player.scene.getObjectByName('shape0').visible = false
 
-            shapeGroup.children.forEach((s) => {
+            shapeGroup.children.forEach((s) => { 
                 if (s.name === 'shape0') return
                 s.visible = true
                 new TWEEN.Tween(s.position).to({ y: s._offsetY }, 1500).easing(TWEEN.Easing.Quadratic.Out).start()
